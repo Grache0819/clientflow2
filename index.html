@@ -1,0 +1,3322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MarketPro CMS | Digital Marketing Client Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6;
+      }
+
+      .kanban-column {
+        min-height: 300px;
+      }
+
+      .task-card {
+        cursor: grab; /* Indicate draggable */
+        transition: all 0.2s ease;
+      }
+
+      .task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+
+      .task-card.dragging {
+        opacity: 0.5;
+        border: 2px dashed #6366f1;
+      }
+
+      .kanban-column.drag-over {
+        background-color: #e0e7ff; /* Light indigo background when dragging over */
+        border: 2px dashed #6366f1;
+      }
+
+      .priority-high {
+        border-left: 4px solid #ef4444;
+      }
+
+      .priority-medium {
+        border-left: 4px solid #f59e0b;
+      }
+
+      .priority-low {
+        border-left: 4px solid #10b981;
+      }
+
+      .sidebar-link {
+        transition: all 0.2s ease;
+      }
+
+      .sidebar-link:hover {
+        background-color: #4f46e5;
+      }
+
+      .sidebar-link.active {
+        background-color: #4f46e5;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 220px;
+        width: 100%;
+      }
+
+      /* Modal styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+
+      .modal-overlay.open {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .modal-content {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        width: 90%;
+        max-width: 500px;
+        transform: translateY(-20px);
+        transition: transform 0.3s ease;
+        position: relative; /* Needed for close button positioning */
+      }
+
+      .modal-overlay.open .modal-content {
+        transform: translateY(0);
+      }
+
+      /* Mobile sidebar */
+      .sidebar-mobile {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 999;
+      }
+
+      .sidebar-mobile.open {
+        transform: translateX(0);
+      }
+
+      /* Toast Message */
+      .toast-message {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        background-color: #4caf50; /* Green */
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 1001;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+      .toast-message.show {
+        opacity: 1;
+        visibility: visible;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="flex h-screen overflow-hidden">
+      <div
+        id="sidebar"
+        class="hidden md:flex flex-col w-64 bg-indigo-800 text-white sidebar-mobile"
+      >
+        <div
+          class="flex items-center justify-center h-16 border-b border-indigo-700"
+        >
+          <h1 class="text-xl font-bold">MarketPro CMS</h1>
+        </div>
+        <div class="flex flex-col flex-grow overflow-y-auto">
+          <nav class="flex-1 px-2 py-4 space-y-1">
+            <a
+              href="#"
+              data-section="dashboard"
+              class="sidebar-link active flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-tachometer-alt mr-3"></i>
+              Dashboard
+            </a>
+            <a
+              href="#"
+              data-section="clients"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-users mr-3"></i>
+              Clients
+            </a>
+            <a
+              href="#"
+              data-section="tasks"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-tasks mr-3"></i>
+              Tasks
+            </a>
+            <a
+              href="#"
+              data-section="projects"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-project-diagram mr-3"></i>
+              Projects
+            </a>
+            <a
+              href="#"
+              data-section="analytics"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-chart-line mr-3"></i>
+              Analytics
+            </a>
+            <a
+              href="#"
+              data-section="history"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-history mr-3"></i>
+              History
+            </a>
+            <a
+              href="#"
+              data-section="settings"
+              class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-md"
+            >
+              <i class="fas fa-cog mr-3"></i>
+              Settings
+            </a>
+          </nav>
+        </div>
+        <div class="p-4 border-t border-indigo-700">
+          <div class="flex items-center">
+            <img
+              class="h-8 w-8 rounded-full"
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Ccircle cx='12' cy='7' r='5' fill='%236366f1'/%3E%3Cpath d='M3,19 a9,9 0 0,1 18,0 z' fill='%236366f1'/%3E%3C/svg%3E"
+              alt="User"
+            />
+            <div class="ml-3">
+              <p class="text-sm font-medium">Alex Morgan</p>
+              <p class="text-xs text-indigo-300">Marketing Director</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-sm">
+          <div class="flex items-center justify-between px-6 py-3">
+            <div class="flex items-center">
+              <button
+                id="mobile-menu-button"
+                class="md:hidden text-gray-500 focus:outline-none"
+              >
+                <i class="fas fa-bars text-lg"></i>
+              </button>
+              <h2
+                id="current-page-title"
+                class="text-lg font-medium text-gray-900 ml-3"
+              >
+                Dashboard
+              </h2>
+            </div>
+            <div class="flex items-center space-x-4">
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search-input"
+                  placeholder="Search clients..."
+                  class="pl-8 pr-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+                <i
+                  class="fas fa-search absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+                ></i>
+              </div>
+              <button
+                id="notification-button"
+                class="text-gray-500 hover:text-gray-700 focus:outline-none relative"
+              >
+                <i class="fas fa-bell text-lg"></i>
+                <span
+                  id="notification-badge"
+                  class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2 hidden"
+                  >0</span
+                >
+              </button>
+              <button
+                id="add-new-item-button"
+                class="text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <i class="fas fa-plus text-lg"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+          <section id="dashboard-section" class="content-section">
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+            >
+              <div class="bg-white rounded-lg shadow p-5">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">
+                      Active Clients
+                    </p>
+                    <p
+                      id="dashboard-active-clients"
+                      class="text-2xl font-bold text-gray-900"
+                    >
+                      0
+                    </p>
+                  </div>
+                  <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                    <i class="fas fa-users"></i>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <span class="text-green-500 text-sm font-medium">
+                    <i class="fas fa-arrow-up"></i> 12%
+                  </span>
+                  <span class="text-gray-500 text-sm ml-2"
+                    >from last month</span
+                  >
+                </div>
+                <button
+                  data-section="clients"
+                  class="view-all-btn mt-4 w-full px-3 py-2 bg-indigo-500 text-white text-sm font-medium rounded-md hover:bg-indigo-600"
+                >
+                  View All Clients
+                </button>
+              </div>
+
+              <div class="bg-white rounded-lg shadow p-5">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">
+                      Ongoing Projects
+                    </p>
+                    <p
+                      id="dashboard-ongoing-projects"
+                      class="text-2xl font-bold text-gray-900"
+                    >
+                      0
+                    </p>
+                  </div>
+                  <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-project-diagram"></i>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <span class="text-green-500 text-sm font-medium">
+                    <i class="fas fa-arrow-up"></i> 8%
+                  </span>
+                  <span class="text-gray-500 text-sm ml-2"
+                    >from last month</span
+                  >
+                </div>
+                <button
+                  data-section="projects"
+                  class="view-all-btn mt-4 w-full px-3 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600"
+                >
+                  View All Projects
+                </button>
+              </div>
+
+              <div class="bg-white rounded-lg shadow p-5">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">
+                      Tasks Due Today
+                    </p>
+                    <p
+                      id="dashboard-tasks-due-today"
+                      class="text-2xl font-bold text-gray-900"
+                    >
+                      0
+                    </p>
+                  </div>
+                  <div class="p-3 rounded-full bg-red-100 text-red-600">
+                    <i class="fas fa-calendar-day"></i>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <span class="text-red-500 text-sm font-medium">
+                    <i class="fas fa-arrow-up"></i> 3
+                  </span>
+                  <span class="text-gray-500 text-sm ml-2">from yesterday</span>
+                </div>
+                <button
+                  data-section="tasks"
+                  class="view-all-btn mt-4 w-full px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600"
+                >
+                  View All Tasks
+                </button>
+              </div>
+
+              <div class="bg-white rounded-lg shadow p-5">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">
+                      Completed Tasks
+                    </p>
+                    <p
+                      id="dashboard-completed-tasks"
+                      class="text-2xl font-bold text-gray-900"
+                    >
+                      0
+                    </p>
+                  </div>
+                  <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-check-circle"></i>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <span class="text-green-500 text-sm font-medium">
+                    <i class="fas fa-arrow-up"></i> 24%
+                  </span>
+                  <span class="text-gray-500 text-sm ml-2">from last week</span>
+                </div>
+                <button
+                  data-section="history"
+                  class="view-all-btn mt-4 w-full px-3 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600"
+                >
+                  View Completed History
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-5 mb-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">
+                Upcoming Deadlines & Milestones
+              </h3>
+              <div id="upcoming-deadlines-container" class="space-y-3"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-5">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">
+                Service Distribution
+              </h3>
+              <div class="chart-container">
+                <canvas id="serviceChart"></canvas>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-4">
+                <div class="flex items-center">
+                  <span class="w-3 h-3 rounded-full bg-indigo-500 mr-2"></span>
+                  <span class="text-xs text-gray-600">Websites (42%)</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                  <span class="text-xs text-gray-600">SEO (28%)</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                  <span class="text-xs text-gray-600">Social Media (18%)</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>
+                  <span class="text-xs text-gray-600">Automations (12%)</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tasks-section" class="content-section hidden">
+            <div class="mb-6">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-900">
+                  Task Management
+                </h3>
+                <div class="flex space-x-2">
+                  <button
+                    data-section="dashboard"
+                    class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  >
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+                  </button>
+                  <button
+                    id="new-task-button"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <i class="fas fa-plus mr-2"></i> New Task
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-lg shadow">
+                  <div
+                    class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg"
+                  >
+                    <h4 class="font-medium text-gray-900">
+                      To Do
+                      <span id="todo-count" class="text-gray-500 text-sm"
+                        >(0)</span
+                      >
+                    </h4>
+                  </div>
+                  <div class="p-4 kanban-column" id="todo-column">
+                    <p class="text-gray-500 text-sm text-center py-4">
+                      No tasks to do.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow">
+                  <div
+                    class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg"
+                  >
+                    <h4 class="font-medium text-gray-900">
+                      In Progress
+                      <span id="inprogress-count" class="text-gray-500 text-sm"
+                        >(0)</span
+                      >
+                    </h4>
+                  </div>
+                  <div class="p-4 kanban-column" id="inprogress-column">
+                    <p class="text-gray-500 text-sm text-center py-4">
+                      No tasks in progress.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow">
+                  <div
+                    class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg"
+                  >
+                    <h4 class="font-medium text-gray-900">
+                      Done
+                      <span id="done-count" class="text-gray-500 text-sm"
+                        >(0)</span
+                      >
+                    </h4>
+                  </div>
+                  <div class="p-4 kanban-column" id="done-column">
+                    <p class="text-gray-500 text-sm text-center py-4">
+                      No completed tasks in Kanban (see History).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="clients-section" class="content-section hidden">
+            <div>
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-900">
+                  Client Management
+                </h3>
+                <div class="flex space-x-2">
+                  <button
+                    data-section="dashboard"
+                    class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  >
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+                  </button>
+                  <button
+                    id="add-client-button"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <i class="fas fa-plus mr-2"></i> Add Client
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Client
+                        </th>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Projects
+                        </th>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Services
+                        </th>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Status
+                        </th>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Last Activity
+                        </th>
+                        <th
+                          scope="col"
+                          class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody
+                      id="client-table-body"
+                      class="bg-white divide-y divide-gray-200"
+                    >
+                      <tr>
+                        <td
+                          colspan="6"
+                          class="px-6 py-4 text-center text-gray-500"
+                        >
+                          No clients added yet.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="projects-section" class="content-section hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-semibold text-gray-900">
+                Projects Overview
+              </h3>
+              <div class="flex space-x-2">
+                <button
+                  data-section="dashboard"
+                  class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+                </button>
+                <button
+                  id="add-project-button"
+                  class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <i class="fas fa-plus mr-2"></i> Add Project
+                </button>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Project Name
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Client
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Type
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Progress
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Due Date
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    id="project-table-body"
+                    class="bg-white divide-y divide-gray-200"
+                  >
+                    <tr>
+                      <td
+                        colspan="6"
+                        class="px-6 py-4 text-center text-gray-500"
+                      >
+                        No projects added yet.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="analytics-section" class="content-section hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-semibold text-gray-900">
+                Detailed Analytics
+              </h3>
+              <button
+                data-section="dashboard"
+                class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 mr-2"
+              >
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+              </button>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <p class="text-gray-600">
+                This section will contain more detailed analytics and reporting
+                tools for campaigns and client performance.
+              </p>
+              <p class="mt-2 text-gray-500">For example:</p>
+              <ul class="list-disc list-inside mt-2 text-gray-700">
+                <li>Traffic sources breakdown</li>
+                <li>Conversion rates by campaign</li>
+                <li>Client ROI reports</li>
+              </ul>
+            </div>
+          </section>
+
+          <section id="history-section" class="content-section hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-semibold text-gray-900">
+                Completed History
+              </h3>
+              <button
+                data-section="dashboard"
+                class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 mr-2"
+              >
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+              </button>
+            </div>
+            <div id="history-content" class="bg-white rounded-lg shadow p-6">
+              <p class="text-gray-600" id="no-history-message">
+                No completed tasks or projects yet.
+              </p>
+            </div>
+          </section>
+
+          <section id="settings-section" class="content-section hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-semibold text-gray-900">
+                Application Settings
+              </h3>
+              <button
+                data-section="dashboard"
+                class="back-to-dashboard-btn px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 mr-2"
+              >
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+              </button>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <p class="text-gray-600">
+                Manage user profiles, notifications, integrations, and other
+                application-wide settings here.
+              </p>
+              <ul class="list-disc list-inside mt-4 text-gray-700">
+                <li>Profile Management</li>
+                <li>Notification Preferences</li>
+                <li>Integrations (e.g., Google Analytics, CRM)</li>
+                <li>Billing Information</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="add-new-item-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">Add New Item</h3>
+          <button
+            id="close-add-new-item-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="flex flex-col space-y-4">
+          <button
+            id="select-add-task-btn"
+            class="px-6 py-3 bg-indigo-600 text-white text-base font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+          >
+            <i class="fas fa-plus mr-2"></i> Add New Task
+          </button>
+          <button
+            id="select-add-client-btn"
+            class="px-6 py-3 bg-green-600 text-white text-base font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center justify-center"
+          >
+            <i class="fas fa-user-plus mr-2"></i> Add New Client
+          </button>
+          <button
+            id="select-add-project-btn"
+            class="px-6 py-3 bg-blue-600 text-white text-base font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+          >
+            <i class="fas fa-folder-plus mr-2"></i> Add New Project
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="new-task-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-900" id="task-modal-title">
+            Add New Task
+          </h3>
+          <button
+            id="close-task-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="new-task-form">
+          <input type="hidden" id="task-id-hidden" />
+          <div class="mb-4">
+            <label
+              for="task-title"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Task Title</label
+            >
+            <input
+              type="text"
+              id="task-title"
+              name="task-title"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label
+              for="task-description"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Description</label
+            >
+            <textarea
+              id="task-description"
+              name="task-description"
+              rows="3"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            ></textarea>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label
+                for="task-assignee"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Assignee</label
+              >
+              <select
+                id="task-assignee"
+                name="task-assignee"
+                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="Alex M.">Alex M.</option>
+                <option value="Sarah L.">Sarah L.</option>
+                <option value="Mike T.">Mike T.</option>
+                <option value="Emma R.">Emma R.</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="task-priority"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Priority</label
+              >
+              <select
+                id="task-priority"
+                name="task-priority"
+                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="high">High</option>
+                <option value="medium" selected>Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label
+              for="task-client"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Client</label
+            >
+            <select
+              id="task-client"
+              name="task-client"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            ></select>
+          </div>
+          <div class="mb-4">
+            <label
+              for="task-due-date"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Due Date</label
+            >
+            <input
+              type="date"
+              id="task-due-date"
+              name="task-due-date"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              id="submit-task-button"
+            >
+              Add Task
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="add-client-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3
+            class="text-xl font-semibold text-gray-900"
+            id="client-modal-title"
+          >
+            Add New Client
+          </h3>
+          <button
+            id="close-client-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="new-client-form">
+          <input type="hidden" id="client-id-hidden" />
+          <div class="mb-4">
+            <label
+              for="client-name"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Client Name</label
+            >
+            <input
+              type="text"
+              id="client-name"
+              name="client-name"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label
+              for="client-email"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Client Email</label
+            >
+            <input
+              type="email"
+              id="client-email"
+              name="client-email"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label
+              for="client-services"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Services (comma-separated)</label
+            >
+            <input
+              type="text"
+              id="client-services"
+              name="client-services"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              id="submit-client-button"
+            >
+              Add Client
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="add-project-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3
+            class="text-xl font-semibold text-gray-900"
+            id="project-modal-title"
+          >
+            Add New Project
+          </h3>
+          <button
+            id="close-project-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="new-project-form">
+          <input type="hidden" id="project-id-hidden" />
+          <div class="mb-4">
+            <label
+              for="project-name"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Project Name</label
+            >
+            <input
+              type="text"
+              id="project-name"
+              name="project-name"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label
+              for="project-client"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Client</label
+            >
+            <select
+              id="project-client"
+              name="project-client"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            ></select>
+          </div>
+          <div class="mb-4">
+            <label
+              for="project-type-select"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Project Type</label
+            >
+            <select
+              id="project-type-select"
+              name="project-type"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            >
+              <option value="">Select Project Type</option>
+            </select>
+          </div>
+          <div class="mb-4 hidden" id="custom-project-type-container">
+            <label
+              for="custom-project-type-input"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Custom Project Type Details</label
+            >
+            <input
+              type="text"
+              id="custom-project-type-input"
+              name="custom-project-type"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="e.g., UI/UX Design, Copywriting"
+            />
+          </div>
+          <div class="mb-4">
+            <label
+              for="project-status"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Status</label
+            >
+            <select
+              id="project-status"
+              name="project-status"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            >
+              <option value="In Progress">In Progress</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label
+              for="project-due-date"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Due Date</label
+            >
+            <input
+              type="date"
+              id="project-due-date"
+              name="project-due-date"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              id="submit-project-button"
+            >
+              Add Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="project-details-modal" class="modal-overlay">
+      <div class="modal-content max-w-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3
+            class="text-xl font-semibold text-gray-900"
+            id="project-details-title"
+          >
+            Project Details
+          </h3>
+          <button
+            id="close-project-details-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div id="project-details-content" class="space-y-4">
+          <p>
+            <span class="font-medium">Client:</span>
+            <span id="detail-project-client"></span>
+          </p>
+          <p>
+            <span class="font-medium">Type:</span>
+            <span id="detail-project-type"></span>
+          </p>
+          <p>
+            <span class="font-medium">Status:</span>
+            <span id="detail-project-status"></span>
+          </p>
+          <p>
+            <span class="font-medium">Due Date:</span>
+            <span id="detail-project-due-date"></span>
+          </p>
+
+          <h4 class="font-semibold text-lg text-gray-900 mt-6 mb-3">
+            Progress Tracking
+          </h4>
+          <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+            <div
+              id="detail-project-overall-progress-bar"
+              class="bg-indigo-600 h-2.5 rounded-full"
+              style="width: 0%"
+            ></div>
+          </div>
+          <p
+            class="text-right text-sm font-medium text-indigo-600"
+            id="detail-project-overall-progress-text"
+          >
+            0% Complete
+          </p>
+
+          <div id="project-tasks-list" class="space-y-3"></div>
+        </div>
+        <div class="flex justify-end mt-6">
+          <button
+            id="save-project-details-btn"
+            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="notification-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">Notifications</h3>
+          <button
+            id="close-notification-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div id="notification-list" class="space-y-3">
+          <p class="text-gray-600" id="no-notifications-message">
+            No new notifications.
+          </p>
+        </div>
+        <div class="flex justify-end mt-4">
+          <button
+            id="mark-all-read-btn"
+            class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Mark All as Read
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmation-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
+          <button
+            id="close-confirmation-modal"
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <p class="text-gray-700 mb-6">
+          Are you sure you want to delete this item? This action cannot be
+          undone.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            id="cancel-delete-btn"
+            class="px-4 py-2 bg-gray-300 text-gray-800 text-sm font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Cancel
+          </button>
+          <button
+            id="confirm-delete-btn"
+            class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-message" class="toast-message"></div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- Global Data Storage (In-memory for this example) ---
+        let clientsData = [
+          {
+            id: "client-1",
+            name: "TechCorp Solutions",
+            email: "contact@techcorp.com",
+            services: "Web Dev, SEO, Analytics",
+            status: "Active",
+            lastActivity: "2 days ago",
+            logoText: "TC",
+            logoColor: "6366f1",
+          },
+          {
+            id: "client-2",
+            name: "GreenLife Organics",
+            email: "info@greenlife.com",
+            services: "Social Media, Content",
+            status: "On Hold",
+            lastActivity: "1 week ago",
+            logoText: "GL",
+            logoColor: "10b981",
+          },
+          {
+            id: "client-3",
+            name: "SportFit Gear",
+            email: "sales@sportfit.com",
+            services: "Ad Campaigns, Email Mkt",
+            status: "Active",
+            lastActivity: "3 days ago",
+            logoText: "SF",
+            logoColor: "f59e0b",
+          },
+        ];
+
+        let tasksData = [
+          {
+            id: "task-1",
+            title: "Create Q3 Marketing Plan",
+            description: "Develop comprehensive marketing strategy for Q3",
+            assignee: "Alex M.",
+            priority: "high",
+            dueDate: "2025-05-24",
+            status: "todo",
+            client: "TechCorp Solutions",
+          },
+          {
+            id: "task-2",
+            title: "Client Onboarding - TechCorp",
+            description: "Complete onboarding process for new client",
+            assignee: "Sarah L.",
+            priority: "medium",
+            dueDate: "2025-05-26",
+            status: "todo",
+            client: "TechCorp Solutions",
+          },
+          {
+            id: "task-3",
+            title: "Update Analytics Dashboard",
+            description: "Add new metrics to client analytics dashboard",
+            assignee: "Mike T.",
+            priority: "low",
+            dueDate: "2025-05-29",
+            status: "todo",
+            client: "GreenLife Organics",
+          },
+          {
+            id: "task-4",
+            title: "Social Media Content Calendar",
+            description: "Create content calendar for next month",
+            assignee: "Emma R.",
+            priority: "medium",
+            dueDate: "2025-05-27",
+            status: "todo",
+            client: "SportFit Gear",
+          },
+          {
+            id: "task-5",
+            title: "Website Redesign - FitLife",
+            description: "Complete homepage and product pages redesign",
+            assignee: "Alex M.",
+            priority: "high",
+            dueDate: "2025-05-30",
+            status: "inprogress",
+            progress: 75,
+            client: "SportFit Gear",
+          },
+          {
+            id: "task-6",
+            title: "SEO Audit - GreenTech",
+            description: "Complete technical SEO audit and recommendations",
+            assignee: "Sarah L.",
+            priority: "medium",
+            dueDate: "2025-06-01",
+            status: "inprogress",
+            progress: 50,
+            client: "GreenLife Organics",
+          },
+          {
+            id: "task-7",
+            title: "Ad Campaign - SportX",
+            description: "Optimize Facebook and Google ad campaigns",
+            assignee: "Mike T.",
+            priority: "medium",
+            dueDate: "2025-06-05",
+            status: "inprogress",
+            client: "SportFit Gear",
+          },
+          {
+            id: "task-8",
+            title: "Email Campaign - Summer Sale",
+            description: "Design and send summer promotion emails",
+            assignee: "Alex M.",
+            priority: "high",
+            dueDate: "2025-05-15",
+            status: "done",
+            completed: true,
+            completionDate: "2025-05-15",
+            client: "TechCorp Solutions",
+          },
+          {
+            id: "task-9",
+            title: "Monthly Analytics Report",
+            description: "Prepare monthly performance reports for all clients",
+            assignee: "Sarah L.",
+            priority: "low",
+            dueDate: "2025-05-20",
+            status: "done",
+            completed: true,
+            completionDate: "2025-05-20",
+            client: "GreenLife Organics",
+          },
+          {
+            id: "task-10",
+            title: "Content Creation - Blog Posts",
+            assignee: "Emma R.",
+            priority: "medium",
+            dueDate: "2025-05-22",
+            status: "done",
+            completed: true,
+            completionDate: "2025-05-22",
+            client: "SportFit Gear",
+          },
+        ];
+
+        let projectsData = [
+          {
+            id: "project-1",
+            name: "E-commerce Platform Launch",
+            client: "TechCorp Solutions",
+            projectType: "Website Development",
+            customProjectType: "",
+            status: "In Progress",
+            dueDate: "2025-07-15",
+            completed: false,
+            serviceTasksProgress: {
+              "Goal Setting + Architecture": true,
+              "Wireframes & Mockups": true,
+              "Content Collection": false,
+              "Development & Responsive Design": false,
+              "SEO & Speed Optimization": false,
+              "Testing & QA": false,
+              "Launch & Training": false,
+            },
+          },
+          {
+            id: "project-2",
+            name: "Brand Refresh Campaign",
+            client: "GreenLife Organics",
+            projectType: "Brand Strategy",
+            customProjectType: "",
+            status: "On Hold",
+            dueDate: "2025-08-01",
+            completed: false,
+            serviceTasksProgress: {
+              "Discovery Session": true,
+              "Competitor Analysis": false,
+              "Brand Audit": false,
+              "Target Audience Personas": false,
+              "Brand Positioning Statement": false,
+              "Visual & Verbal Identity": false,
+              "Final Brand Strategy Deck": false,
+            },
+          },
+          {
+            id: "project-3",
+            name: "Mobile App Development",
+            client: "SportFit Gear",
+            projectType: "Website Development",
+            customProjectType: "",
+            status: "In Progress",
+            dueDate: "2025-09-30",
+            completed: false,
+            serviceTasksProgress: {
+              "Goal Setting + Architecture": true,
+              "Wireframes & Mockups": true,
+              "Content Collection": true,
+              "Development & Responsive Design": true,
+              "SEO & Speed Optimization": false,
+              "Testing & QA": false,
+              "Launch & Training": false,
+            },
+          },
+          {
+            id: "project-4",
+            name: "Website Migration",
+            client: "TechCorp Solutions",
+            projectType: "Website Development",
+            customProjectType: "",
+            status: "Completed",
+            dueDate: "2025-04-10",
+            completed: true,
+            completionDate: "2025-04-10",
+            serviceTasksProgress: {
+              "Goal Setting + Architecture": true,
+              "Wireframes & Mockups": true,
+              "Content Collection": true,
+              "Development & Responsive Design": true,
+              "SEO & Speed Optimization": true,
+              "Testing & QA": true,
+              "Launch & Training": true,
+            },
+          },
+        ];
+
+        let notificationsData = [
+          {
+            id: "notif-1",
+            message: 'Task "Create Q3 Marketing Plan" is due today!',
+            type: "reminder",
+            read: false,
+          },
+          {
+            id: "notif-2",
+            message: 'New client "Global Innovations" added.',
+            type: "info",
+            read: false,
+          },
+          {
+            id: "notif-3",
+            message: 'Project "E-commerce Platform Launch" is 75% complete.',
+            type: "update",
+            read: true,
+          },
+        ];
+
+        const serviceProgressData = [
+          {
+            id: "brand-strategy", // Add ID for easy lookup
+            name: "Brand Strategy",
+            tasks: [
+              { name: "Discovery Session", percentage: 10 },
+              { name: "Competitor Analysis", percentage: 10 },
+              { name: "Brand Audit", percentage: 5 },
+              { name: "Target Audience Personas", percentage: 10 },
+              { name: "Brand Positioning Statement", percentage: 20 },
+              { name: "Visual & Verbal Identity", percentage: 30 },
+              { name: "Final Brand Strategy Deck", percentage: 20 },
+            ],
+          },
+          {
+            id: "seo",
+            name: "SEO",
+            tasks: [
+              { name: "Keyword Research", percentage: 10 },
+              { name: "Competitor SERP Analysis", percentage: 10 },
+              { name: "On-Page SEO Audit", percentage: 20 },
+              { name: "Content Optimization Plan", percentage: 12 },
+              { name: "Technical SEO Audit", percentage: 20 },
+              { name: "Backlink Strategy", percentage: 18 },
+              { name: "Reporting Dashboard Setup", percentage: 10 },
+            ],
+          },
+          {
+            id: "content-calendar-creation",
+            name: "Content Calendar & Creation",
+            tasks: [
+              { name: "Content Pillars", percentage: 10 },
+              { name: "Audience/Platform Research", percentage: 10 },
+              { name: "Monthly Calendar Planning", percentage: 8 },
+              { name: "Caption/Visual Creation", percentage: 6 },
+              { name: "Hashtag & SEO Integration", percentage: 12 },
+              { name: "Scheduling or Posting", percentage: 24 },
+              { name: "Performance Tracking", percentage: 30 },
+            ],
+          },
+          {
+            id: "website-development",
+            name: "Website Development",
+            tasks: [
+              { name: "Goal Setting + Architecture", percentage: 10 },
+              { name: "Wireframes & Mockups", percentage: 10 },
+              { name: "Content Collection", percentage: 3 },
+              { name: "Development & Responsive Design", percentage: 20 },
+              { name: "SEO & Speed Optimization", percentage: 20 },
+              { name: "Testing & QA", percentage: 15 },
+              { name: "Launch & Training", percentage: 22 },
+            ],
+          },
+          {
+            id: "automations",
+            name: "Automations",
+            tasks: [
+              { name: "Identify Workflows", percentage: 10 },
+              { name: "Tool Stack Recommendation", percentage: 10 },
+              { name: "Automation Mapping", percentage: 6 },
+              { name: "Email/SMS/CRM Setup", percentage: 24 },
+              { name: "Test Workflows", percentage: 20 },
+              { name: "Documentation & Training", percentage: 30 },
+            ],
+          },
+        ];
+
+        // --- Helper Functions ---
+
+        // Function to show a toast message
+        function showToast(message, isError = false) {
+          const toast = document.getElementById("toast-message");
+          toast.textContent = message;
+          if (isError) {
+            toast.style.backgroundColor = "#f44336"; // Red for error
+          } else {
+            toast.style.backgroundColor = "#4CAF50"; // Green for success
+          }
+          toast.classList.add("show");
+          setTimeout(() => {
+            toast.classList.remove("show");
+          }, 3000); // Hide after 3 seconds
+        }
+
+        // Function to get a random color for placeholder images
+        function getRandomColor() {
+          return Math.floor(Math.random() * 16777215).toString(16);
+        }
+
+        // Function to calculate due date display string
+        function getDueDateDisplay(dueDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Normalize today to start of day
+          const due = new Date(dueDate);
+          due.setHours(0, 0, 0, 0); // Normalize due date to start of day
+
+          const diffTime = due.getTime() - today.getTime(); // Difference in milliseconds
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 0) {
+            return { text: "Due Today", class: "text-red-600" };
+          } else if (diffDays < 0) {
+            return {
+              text: `Overdue by ${Math.abs(diffDays)} day${
+                Math.abs(diffDays) === 1 ? "" : "s"
+              }`,
+              class: "text-red-600",
+            };
+          } else {
+            return {
+              text: `Due in ${diffDays} day${diffDays === 1 ? "" : "s"}`,
+              class: "text-gray-600",
+            };
+          }
+        }
+
+        // Function to calculate project progress based on completed service tasks
+        function calculateProjectProgress(project) {
+          if (
+            !project.projectType ||
+            project.projectType === "Others" ||
+            !project.serviceTasksProgress
+          ) {
+            return 0; // Cannot calculate progress if no specific service type or tasks are defined
+          }
+
+          const serviceType = serviceProgressData.find(
+            (s) => s.name === project.projectType
+          );
+          if (!serviceType) {
+            return 0; // Service type not found in predefined data
+          }
+
+          let completedWeightedSum = 0;
+          let totalWeight = 0;
+
+          serviceType.tasks.forEach((task) => {
+            totalWeight += task.percentage;
+            if (project.serviceTasksProgress[task.name]) {
+              completedWeightedSum += task.percentage;
+            }
+          });
+
+          if (totalWeight === 0) return 0; // Avoid division by zero
+
+          return Math.round((completedWeightedSum / totalWeight) * 100);
+        }
+
+        // Function to update dashboard summary numbers
+        function updateDashboardSummary() {
+          document.getElementById("dashboard-active-clients").textContent =
+            clientsData.length;
+          document.getElementById("dashboard-ongoing-projects").textContent =
+            projectsData.filter((p) => !p.completed).length;
+
+          const today = new Date().toISOString().split("T")[0];
+          document.getElementById("dashboard-tasks-due-today").textContent =
+            tasksData.filter(
+              (task) => task.dueDate === today && !task.completed
+            ).length;
+          document.getElementById("dashboard-completed-tasks").textContent =
+            tasksData.filter((task) => task.completed).length;
+        }
+
+        // --- Sidebar Navigation Functionality ---
+        const sidebarLinks = document.querySelectorAll(".sidebar-link");
+        const contentSections = document.querySelectorAll(".content-section");
+        const currentPageTitle = document.getElementById("current-page-title");
+
+        function showSection(sectionId) {
+          // Remove active class from all links
+          sidebarLinks.forEach((item) => item.classList.remove("active"));
+          // Add active class to the clicked link
+          const activeLink = document.querySelector(
+            `[data-section="${sectionId.replace("-section", "")}"]`
+          );
+          if (activeLink) {
+            activeLink.classList.add("active");
+            currentPageTitle.textContent = activeLink.textContent.trim();
+          }
+
+          // Hide all content sections
+          contentSections.forEach((section) => section.classList.add("hidden"));
+          // Show the target section
+          const targetSection = document.getElementById(sectionId);
+          if (targetSection) {
+            targetSection.classList.remove("hidden");
+          }
+
+          // Close mobile sidebar if open
+          const sidebar = document.getElementById("sidebar");
+          if (sidebar.classList.contains("open")) {
+            sidebar.classList.remove("open");
+            document.body.classList.remove("overflow-hidden"); // Restore body scroll
+          }
+
+          // Re-render specific sections if needed
+          if (sectionId === "tasks-section") {
+            renderTasks();
+          } else if (sectionId === "clients-section") {
+            renderClients();
+          } else if (sectionId === "projects-section") {
+            renderProjects();
+          } else if (sectionId === "history-section") {
+            renderHistory();
+          }
+          updateDashboardSummary(); // Always update dashboard numbers when navigating
+        }
+
+        sidebarLinks.forEach((link) => {
+          link.addEventListener("click", (e) => {
+            e.preventDefault();
+            const targetSectionId = link.dataset.section + "-section";
+            showSection(targetSectionId);
+          });
+        });
+
+        // --- Mobile Sidebar Toggle ---
+        const mobileMenuButton = document.getElementById("mobile-menu-button");
+        const sidebar = document.getElementById("sidebar");
+
+        mobileMenuButton.addEventListener("click", () => {
+          sidebar.classList.toggle("open");
+          document.body.classList.toggle("overflow-hidden");
+        });
+
+        document.addEventListener("click", (e) => {
+          if (
+            sidebar.classList.contains("open") &&
+            !sidebar.contains(e.target) &&
+            !mobileMenuButton.contains(e.target)
+          ) {
+            sidebar.classList.remove("open");
+            document.body.classList.remove("overflow-hidden");
+          }
+        });
+
+        // --- Chart.js Initialization ---
+        function initializeCharts() {
+          // Service Distribution Chart (Doughnut)
+          const serviceCtx = document
+            .getElementById("serviceChart")
+            .getContext("2d");
+          new Chart(serviceCtx, {
+            type: "doughnut",
+            data: {
+              labels: serviceProgressData.map((s) => s.name), // Dynamically get service names
+              datasets: [
+                {
+                  data: serviceProgressData.map(
+                    () => 100 / serviceProgressData.length
+                  ), // Equal distribution for now
+                  backgroundColor: [
+                    "#6366f1",
+                    "#3b82f6",
+                    "#10b981",
+                    "#f59e0b",
+                    "#ef4444",
+                  ], // indigo, blue, green, yellow, red
+                  hoverOffset: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false, // We have custom legend below
+                },
+                title: {
+                  display: false,
+                  text: "Service Distribution",
+                },
+              },
+            },
+          });
+        }
+
+        // --- Kanban Drag and Drop Functionality ---
+        const columns = document.querySelectorAll(".kanban-column");
+        let draggedItem = null;
+
+        function setupDragAndDrop() {
+          // Remove existing listeners to prevent duplicates
+          columns.forEach((column) => {
+            column.removeEventListener("dragstart", handleDragStart);
+            column.removeEventListener("dragover", handleDragOver);
+            column.removeEventListener("dragleave", handleDragLeave);
+            column.removeEventListener("drop", handleDrop);
+            column.removeEventListener("dragend", handleDragEnd);
+          });
+
+          // Add draggable attribute to all task cards
+          document.querySelectorAll(".task-card").forEach((card) => {
+            card.setAttribute("draggable", "true");
+          });
+
+          // Add new listeners
+          columns.forEach((column) => {
+            column.addEventListener("dragstart", handleDragStart);
+            column.addEventListener("dragover", handleDragOver);
+            column.addEventListener("dragleave", handleDragLeave);
+            column.addEventListener("drop", handleDrop);
+            column.addEventListener("dragend", handleDragEnd);
+          });
+        }
+
+        function handleDragStart(e) {
+          if (e.target.classList.contains("task-card")) {
+            draggedItem = e.target;
+            e.dataTransfer.setData("text/plain", draggedItem.id); // Set data for drop
+            setTimeout(() => {
+              e.target.classList.add("dragging");
+            }, 0);
+          }
+        }
+
+        function handleDragOver(e) {
+          e.preventDefault();
+          if (e.target.classList.contains("kanban-column")) {
+            e.target.classList.add("drag-over");
+          }
+        }
+
+        function handleDragLeave(e) {
+          if (e.target.classList.contains("kanban-column")) {
+            e.target.classList.remove("drag-over");
+          }
+        }
+
+        function handleDrop(e) {
+          e.preventDefault();
+          const targetColumn = e.target.closest(".kanban-column");
+          if (targetColumn && draggedItem) {
+            targetColumn.classList.remove("drag-over");
+
+            // Update task status in data
+            const taskId = draggedItem.id;
+            const newStatus = targetColumn.id.replace("-column", ""); // e.g., 'todo', 'inprogress', 'done'
+            const taskIndex = tasksData.findIndex((task) => task.id === taskId);
+
+            if (taskIndex !== -1) {
+              tasksData[taskIndex].status = newStatus;
+              if (newStatus === "done") {
+                tasksData[taskIndex].completed = true;
+                tasksData[taskIndex].completionDate = new Date()
+                  .toISOString()
+                  .split("T")[0];
+              } else {
+                tasksData[taskIndex].completed = false;
+                delete tasksData[taskIndex].completionDate;
+              }
+              renderTasks(); // Re-render the entire kanban board
+              renderHistory(); // Update history tab
+              updateNotificationBadge(); // Update notifications
+              updateDashboardSummary(); // Update dashboard numbers
+            }
+          }
+        }
+
+        function handleDragEnd() {
+          if (draggedItem) {
+            draggedItem.classList.remove("dragging");
+            draggedItem = null;
+          }
+          columns.forEach((col) => col.classList.remove("drag-over"));
+        }
+
+        // Function to update task counts in column headers
+        function updateTaskCounts() {
+          document.getElementById("todo-count").textContent = `(${
+            tasksData.filter(
+              (task) => task.status === "todo" && !task.completed
+            ).length
+          })`;
+          document.getElementById("inprogress-count").textContent = `(${
+            tasksData.filter(
+              (task) => task.status === "inprogress" && !task.completed
+            ).length
+          })`;
+          document.getElementById("done-count").textContent = `(${
+            tasksData.filter((task) => task.status === "done" && task.completed)
+              .length
+          })`;
+        }
+
+        // --- Render Functions ---
+
+        function renderClients(filterText = "") {
+          const clientTableBody = document.getElementById("client-table-body");
+          clientTableBody.innerHTML = ""; // Clear existing rows
+
+          const filteredClients = clientsData.filter(
+            (client) =>
+              client.name.toLowerCase().includes(filterText.toLowerCase()) ||
+              client.email.toLowerCase().includes(filterText.toLowerCase()) ||
+              client.services.toLowerCase().includes(filterText.toLowerCase())
+          );
+
+          if (filteredClients.length === 0 && filterText !== "") {
+            clientTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No clients found matching "${filterText}"</td></tr>`;
+            return;
+          } else if (clientsData.length === 0) {
+            clientTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No clients added yet.</td></tr>`;
+            return;
+          }
+
+          filteredClients.forEach((client) => {
+            const newRow = document.createElement("tr");
+            const logoUrl = `https://placehold.co/40x40/${client.logoColor}/ffffff?text=${client.logoText}`;
+            const clientProjectsCount = projectsData.filter(
+              (p) => p.client === client.name && !p.completed
+            ).length;
+
+            newRow.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <img class="h-10 w-10 rounded-full" src="${logoUrl}" alt="${
+              client.name
+            } Logo">
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">${
+                                      client.name
+                                    }</div>
+                                    <div class="text-sm text-gray-500">${
+                                      client.email
+                                    }</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${clientProjectsCount}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+                          client.services || "N/A"
+                        }</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              client.status === "Active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }">${client.status}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+                          client.lastActivity
+                        }</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button data-client-id="${
+                              client.id
+                            }" class="text-indigo-600 hover:text-indigo-900 mr-3 edit-client-btn">Edit</button>
+                            <button data-client-id="${
+                              client.id
+                            }" data-item-type="client" class="text-red-600 hover:text-red-900 delete-item-btn">Delete</button>
+                        </td>
+                    `;
+            clientTableBody.appendChild(newRow);
+          });
+
+          // Add event listeners for edit buttons
+          document.querySelectorAll(".edit-client-btn").forEach((button) => {
+            button.addEventListener("click", (e) => {
+              const clientIdToEdit = e.target.dataset.clientId;
+              openEditClientModal(clientIdToEdit);
+            });
+          });
+
+          // Populate client dropdowns in modals
+          populateClientDropdowns();
+          updateDashboardSummary();
+        }
+
+        function renderTasks() {
+          const todoColumn = document.getElementById("todo-column");
+          const inprogressColumn = document.getElementById("inprogress-column");
+          const doneColumn = document.getElementById("done-column");
+
+          // Clear columns before re-rendering
+          todoColumn.innerHTML = "";
+          inprogressColumn.innerHTML = "";
+          doneColumn.innerHTML = "";
+
+          const todoTasks = tasksData.filter(
+            (task) => task.status === "todo" && !task.completed
+          );
+          const inProgressTasks = tasksData.filter(
+            (task) => task.status === "inprogress" && !task.completed
+          );
+          const doneTasks = tasksData.filter(
+            (task) => task.status === "done" && task.completed
+          ); // Only completed tasks in 'Done'
+
+          if (todoTasks.length === 0) {
+            todoColumn.innerHTML =
+              '<p class="text-gray-500 text-sm text-center py-4">No tasks to do.</p>';
+          }
+          if (inProgressTasks.length === 0) {
+            inprogressColumn.innerHTML =
+              '<p class="text-gray-500 text-sm text-center py-4">No tasks in progress.</p>';
+          }
+          if (doneTasks.length === 0) {
+            doneColumn.innerHTML =
+              '<p class="text-gray-500 text-sm text-center py-4">No completed tasks in Kanban (see History).</p>';
+          }
+
+          [...todoTasks, ...inProgressTasks, ...doneTasks].forEach((task) => {
+            const newTaskCard = document.createElement("div");
+            newTaskCard.id = task.id;
+            newTaskCard.setAttribute("draggable", "true");
+            newTaskCard.classList.add(
+              "task-card",
+              "bg-white",
+              "rounded-lg",
+              "shadow-sm",
+              "p-4",
+              "mb-3"
+            );
+
+            let priorityClass = "";
+            let priorityText = "";
+            let priorityBgClass = "";
+            let priorityTextColor = "";
+            switch (task.priority) {
+              case "high":
+                priorityClass = "priority-high";
+                priorityText = "High";
+                priorityBgClass = "bg-red-100";
+                priorityTextColor = "text-red-800";
+                break;
+              case "medium":
+                priorityClass = "priority-medium";
+                priorityText = "Medium";
+                priorityBgClass = "bg-yellow-100";
+                priorityTextColor = "text-yellow-800";
+                break;
+              case "low":
+                priorityClass = "priority-low";
+                priorityText = "Low";
+                priorityBgClass = "bg-green-100";
+                priorityTextColor = "text-green-800";
+                break;
+            }
+            newTaskCard.classList.add(priorityClass);
+
+            const assigneeAvatarSVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Ccircle cx='12' cy='7' r='5' fill='%236366f1'/%3E%3Cpath d='M3,19 a9,9 0 0,1 18,0 z' fill='%236366f1'/%3E%3C/svg%3E`; // Default avatar
+
+            const dueDateInfo = getDueDateDisplay(task.dueDate);
+
+            let progressHtml = "";
+            if (task.status === "inprogress" && task.progress !== undefined) {
+              progressHtml = `
+                            <div class="w-24">
+                                <div class="text-xs text-gray-600 font-medium mb-1">${task.progress}% Complete</div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="bg-indigo-600 h-1.5 rounded-full" style="width: ${task.progress}%"></div>
+                                    </div>
+                            </div>
+                        `;
+            }
+
+            newTaskCard.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <h5 class="font-medium text-gray-900">${
+                              task.title
+                            }</h5>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${priorityBgClass} ${priorityTextColor}">${priorityText}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">${
+                          task.description || "No description provided."
+                        }</p>
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="flex items-center">
+                                <img class="h-6 w-6 rounded-full" src="${assigneeAvatarSVG}" alt="${
+              task.assignee
+            }">
+                                <span class="text-xs text-gray-500 ml-2">${
+                                  task.assignee
+                                }</span>
+                            </div>
+                            ${
+                              progressHtml ||
+                              `<span class="text-xs font-medium ${dueDateInfo.class}">${dueDateInfo.text}</span>`
+                            }
+                        </div>
+                        <div class="mt-3 flex justify-end space-x-2">
+                            <button data-task-id="${
+                              task.id
+                            }" class="edit-task-btn px-3 py-1 bg-indigo-500 text-white text-xs font-medium rounded-md hover:bg-indigo-600">Edit</button>
+                            <button data-task-id="${
+                              task.id
+                            }" class="mark-task-complete-btn px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-md hover:bg-green-600">Mark Complete</button>
+                            <button data-task-id="${
+                              task.id
+                            }" data-item-type="task" class="delete-item-btn px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-md hover:bg-red-600">Delete</button>
+                        </div>
+                    `;
+
+            // Append to correct column
+            if (task.status === "todo") {
+              todoColumn.appendChild(newTaskCard);
+            } else if (task.status === "inprogress") {
+              inprogressColumn.appendChild(newTaskCard);
+            } else if (task.status === "done" && !task.completed) {
+              // Should only be here if not explicitly marked complete
+              doneColumn.appendChild(newTaskCard);
+            }
+          });
+
+          // Add event listeners for "Edit" buttons
+          document.querySelectorAll(".edit-task-btn").forEach((button) => {
+            button.addEventListener("click", (e) => {
+              const taskIdToEdit = e.target.dataset.taskId;
+              openEditTaskModal(taskIdToEdit);
+            });
+          });
+
+          // Add event listeners for "Mark Complete" buttons
+          document
+            .querySelectorAll(".mark-task-complete-btn")
+            .forEach((button) => {
+              button.addEventListener("click", (e) => {
+                const taskIdToComplete = e.target.dataset.taskId;
+                const taskIndex = tasksData.findIndex(
+                  (t) => t.id === taskIdToComplete
+                );
+                if (taskIndex !== -1) {
+                  tasksData[taskIndex].status = "done";
+                  tasksData[taskIndex].completed = true;
+                  tasksData[taskIndex].completionDate = new Date()
+                    .toISOString()
+                    .split("T")[0];
+                  renderTasks(); // Re-render to move the task
+                  renderHistory(); // Update history
+                  updateNotificationBadge(); // Update notifications
+                  updateDashboardSummary(); // Update dashboard numbers
+                  showToast("Task marked as complete!");
+                }
+              });
+            });
+
+          updateTaskCounts();
+          setupDragAndDrop(); // Re-apply drag and drop listeners after re-rendering
+          updateDashboardSummary();
+        }
+
+        function renderProjects() {
+          const projectTableBody =
+            document.getElementById("project-table-body");
+          projectTableBody.innerHTML = ""; // Clear existing rows
+
+          if (projectsData.length === 0) {
+            projectTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No projects added yet.</td></tr>`;
+            return;
+          }
+
+          projectsData.forEach((project) => {
+            // Calculate progress for each project
+            const progress = calculateProjectProgress(project);
+            const newRow = document.createElement("tr");
+            const statusClass =
+              project.status === "Completed"
+                ? "bg-green-100 text-green-800"
+                : project.status === "In Progress"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-yellow-100 text-yellow-800";
+            const dueDateInfo = getDueDateDisplay(project.dueDate);
+
+            newRow.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${
+                          project.name
+                        }</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+                          project.client
+                        }</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
+                          project.projectType === "Others"
+                            ? project.customProjectType
+                            : project.projectType || "N/A"
+                        }</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                <div class="bg-indigo-600 h-2 rounded-full" style="width: ${progress}%;"></div>
+                            </div>
+                            <span class="text-xs text-gray-600">${progress}%</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 ${
+                          dueDateInfo.class
+                        }">${dueDateInfo.text}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button data-project-id="${
+                              project.id
+                            }" class="text-indigo-600 hover:text-indigo-900 mr-3 edit-project-btn">Edit</button>
+                            ${
+                              !project.completed
+                                ? `<button data-project-id="${project.id}" class="mark-project-complete-btn text-green-600 hover:text-green-900 mr-3">Mark Complete</button>`
+                                : ""
+                            }
+                            <button data-project-id="${
+                              project.id
+                            }" data-item-type="project" class="text-red-600 hover:text-red-900 delete-item-btn">Delete</button>
+                        </td>
+                    `;
+            projectTableBody.appendChild(newRow);
+          });
+
+          // Add event listeners for "Edit" buttons
+          document.querySelectorAll(".edit-project-btn").forEach((button) => {
+            button.addEventListener("click", (e) => {
+              const projectIdToEdit = e.target.dataset.projectId;
+              openProjectDetailsModal(projectIdToEdit); // This will now open the project details modal
+            });
+          });
+
+          // Add event listeners for "Mark Complete" buttons
+          document
+            .querySelectorAll(".mark-project-complete-btn")
+            .forEach((button) => {
+              button.addEventListener("click", (e) => {
+                const projectIdToComplete = e.target.dataset.projectId;
+                const projectIndex = projectsData.findIndex(
+                  (p) => p.id === projectIdToComplete
+                );
+                if (projectIndex !== -1) {
+                  // Mark all service tasks as complete if a service type is defined
+                  if (
+                    projectsData[projectIndex].projectType &&
+                    projectsData[projectIndex].projectType !== "Others"
+                  ) {
+                    const serviceType = serviceProgressData.find(
+                      (s) => s.name === projectsData[projectIndex].projectType
+                    );
+                    if (serviceType) {
+                      serviceType.tasks.forEach((task) => {
+                        projectsData[projectIndex].serviceTasksProgress[
+                          task.name
+                        ] = true;
+                      });
+                    }
+                  }
+                  projectsData[projectIndex].status = "Completed";
+                  projectsData[projectIndex].completed = true;
+                  projectsData[projectIndex].completionDate = new Date()
+                    .toISOString()
+                    .split("T")[0];
+                  renderProjects(); // Re-render to update status/remove button
+                  renderHistory(); // Update history
+                  updateNotificationBadge(); // Update notifications
+                  updateDashboardSummary(); // Update dashboard numbers
+                  showToast("Project marked as complete!");
+                }
+              });
+            });
+          updateDashboardSummary();
+        }
+
+        function renderHistory() {
+          const historyContent = document.getElementById("history-content");
+          historyContent.innerHTML = ""; // Clear existing content
+
+          const completedItems = [
+            ...tasksData.filter((t) => t.completed),
+            ...projectsData.filter((p) => p.completed),
+          ];
+
+          if (completedItems.length === 0) {
+            historyContent.innerHTML =
+              '<p class="text-gray-600" id="no-history-message">No completed tasks or projects yet.</p>';
+            return;
+          }
+
+          // Sort items by completion date descending
+          completedItems.sort(
+            (a, b) => new Date(b.completionDate) - new Date(a.completionDate)
+          );
+
+          // Group by year-month
+          const groupedByMonth = completedItems.reduce((acc, item) => {
+            const date = new Date(item.completionDate);
+            const yearMonth = date.toLocaleString("en-US", {
+              year: "numeric",
+              month: "long",
+            });
+            if (!acc[yearMonth]) {
+              acc[yearMonth] = {};
+            }
+            return acc;
+          }, {});
+
+          // Group by client within each month
+          completedItems.forEach((item) => {
+            const date = new Date(item.completionDate);
+            const yearMonth = date.toLocaleString("en-US", {
+              year: "numeric",
+              month: "long",
+            });
+            const clientName = item.client || "Unassigned";
+            if (!groupedByMonth[yearMonth][clientName]) {
+              groupedByMonth[yearMonth][clientName] = {};
+            }
+          });
+
+          // Group by project type (or task type for tasks) within each client within each month
+          completedItems.forEach((item) => {
+            const date = new Date(item.completionDate);
+            const yearMonth = date.toLocaleString("en-US", {
+              year: "numeric",
+              month: "long",
+            });
+            const clientName = item.client || "Unassigned";
+            const itemType = item.projectType || "Task"; // Use projectType for projects, 'Task' for tasks
+            if (!groupedByMonth[yearMonth][clientName][itemType]) {
+              groupedByMonth[yearMonth][clientName][itemType] = [];
+            }
+            groupedByMonth[yearMonth][clientName][itemType].push(item);
+          });
+
+          // Render the grouped history
+          for (const month in groupedByMonth) {
+            const monthDiv = document.createElement("div");
+            monthDiv.classList.add(
+              "mb-8",
+              "p-4",
+              "bg-blue-50",
+              "rounded-lg",
+              "shadow-md"
+            );
+            monthDiv.innerHTML = `<h3 class="text-xl font-bold text-blue-800 mb-4">${month}</h3>`;
+
+            for (const client in groupedByMonth[month]) {
+              const clientDiv = document.createElement("div");
+              clientDiv.classList.add(
+                "mb-6",
+                "ml-4",
+                "p-4",
+                "bg-gray-100",
+                "rounded-lg",
+                "shadow-sm"
+              );
+              clientDiv.innerHTML = `<h4 class="text-lg font-semibold text-gray-800 mb-3">Client: ${client}</h4>`;
+
+              for (const type in groupedByMonth[month][client]) {
+                const typeDiv = document.createElement("div");
+                typeDiv.classList.add(
+                  "mb-4",
+                  "ml-4",
+                  "p-3",
+                  "bg-white",
+                  "rounded-lg",
+                  "shadow-xs"
+                );
+                typeDiv.innerHTML = `<h5 class="font-medium text-gray-700 mb-2">Type: ${type}</h5>`;
+
+                const ul = document.createElement("ul");
+                ul.classList.add("list-disc", "list-inside", "space-y-1");
+
+                groupedByMonth[month][client][type].forEach((item) => {
+                  const li = document.createElement("li");
+                  const itemName = item.title || item.name;
+                  const completionDate = item.completionDate
+                    ? new Date(item.completionDate).toLocaleDateString()
+                    : "N/A";
+                  li.classList.add("text-gray-700");
+                  li.innerHTML = `
+                                    <span class="font-medium">${itemName}</span> - Completed on: <span class="text-green-600">${completionDate}</span>
+                                `;
+                  ul.appendChild(li);
+                });
+                typeDiv.appendChild(ul);
+                clientDiv.appendChild(typeDiv);
+              }
+              monthDiv.appendChild(clientDiv);
+            }
+            historyContent.appendChild(monthDiv);
+          }
+          updateDashboardSummary();
+        }
+
+        // --- Render Upcoming Deadlines & Milestones Section ---
+        function renderUpcomingDeadlines() {
+          const container = document.getElementById(
+            "upcoming-deadlines-container"
+          );
+          container.innerHTML = ""; // Clear existing content
+
+          const allDeadlines = [];
+
+          // Add incomplete tasks
+          tasksData
+            .filter((task) => !task.completed)
+            .forEach((task) => {
+              allDeadlines.push({
+                type: "Task",
+                name: task.title,
+                client: task.client,
+                dueDate: task.dueDate,
+                icon: "fas fa-tasks",
+              });
+            });
+
+          // Add incomplete projects
+          projectsData
+            .filter((project) => !project.completed)
+            .forEach((project) => {
+              allDeadlines.push({
+                type: "Project",
+                name: project.name,
+                client: project.client,
+                dueDate: project.dueDate,
+                icon: "fas fa-project-diagram",
+              });
+            });
+
+          // Sort by due date
+          allDeadlines.sort(
+            (a, b) => new Date(a.dueDate) - new Date(b.dueDate)
+          );
+
+          if (allDeadlines.length === 0) {
+            container.innerHTML =
+              '<p class="text-gray-600 text-center py-4">No upcoming deadlines or milestones.</p>';
+            return;
+          }
+
+          allDeadlines.forEach((item) => {
+            const dueDateInfo = getDueDateDisplay(item.dueDate);
+            const itemDiv = document.createElement("div");
+            itemDiv.classList.add(
+              "flex",
+              "items-center",
+              "justify-between",
+              "p-3",
+              "bg-gray-50",
+              "rounded-md",
+              "shadow-sm"
+            );
+            itemDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="${item.icon} text-indigo-500 mr-3"></i>
+                            <div>
+                                <p class="font-medium text-gray-900">${item.name}</p>
+                                <p class="text-sm text-gray-600">Client: ${item.client} &bull; Type: ${item.type}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm font-medium ${dueDateInfo.class}">${dueDateInfo.text}</span>
+                    `;
+            container.appendChild(itemDiv);
+          });
+        }
+
+        // --- Modal Functionality (New Task, Add Client, Add Project, Notifications, Confirmation) ---
+
+        // Generic modal open/close
+        function openModal(modalId) {
+          document.getElementById(modalId).classList.add("open");
+        }
+
+        function closeModal(modalId, formId = null) {
+          document.getElementById(modalId).classList.remove("open");
+          if (formId) {
+            document.getElementById(formId).reset();
+          }
+        }
+
+        // Add New Item Selection Modal (for the top right plus button)
+        const addNewItemButton = document.getElementById("add-new-item-button");
+        const addNewItemModal = document.getElementById("add-new-item-modal");
+        const closeAddNewItemModalButton = document.getElementById(
+          "close-add-new-item-modal"
+        );
+        const selectAddTaskBtn = document.getElementById("select-add-task-btn");
+        const selectAddClientBtn = document.getElementById(
+          "select-add-client-btn"
+        );
+        const selectAddProjectBtn = document.getElementById(
+          "select-add-project-btn"
+        );
+
+        addNewItemButton.addEventListener("click", () =>
+          openModal("add-new-item-modal")
+        );
+        closeAddNewItemModalButton.addEventListener("click", () =>
+          closeModal("add-new-item-modal")
+        );
+        addNewItemModal.addEventListener("click", (e) => {
+          if (e.target === addNewItemModal) closeModal("add-new-item-modal");
+        });
+
+        selectAddTaskBtn.addEventListener("click", () => {
+          closeModal("add-new-item-modal");
+          taskIdHiddenInput.value = ""; // Clear hidden ID for new task
+          taskModalTitle.textContent = "Add New Task";
+          submitTaskButton.textContent = "Add Task";
+          openModal("new-task-modal");
+        });
+        selectAddClientBtn.addEventListener("click", () => {
+          closeModal("add-new-item-modal");
+          clientIdHiddenInput.value = ""; // Clear hidden ID for new client
+          clientModalTitle.textContent = "Add New Client";
+          submitClientButton.textContent = "Add Client";
+          openModal("add-client-modal");
+        });
+        selectAddProjectBtn.addEventListener("click", () => {
+          closeModal("add-new-item-modal");
+          projectIdHiddenInput.value = ""; // Clear hidden ID for new project
+          projectModalTitle.textContent = "Add New Project";
+          submitProjectButton.textContent = "Add Project";
+          populateProjectTypeDropdown(); // Populate project type dropdown
+          document
+            .getElementById("custom-project-type-container")
+            .classList.add("hidden"); // Hide custom input
+          openModal("add-project-modal");
+        });
+
+        // New/Edit Task Modal
+        const newTaskButton = document.getElementById("new-task-button"); // This button is now inside the tasks section
+        const taskModal = document.getElementById("new-task-modal");
+        const closeTaskModalButton =
+          document.getElementById("close-task-modal");
+        const newTaskForm = document.getElementById("new-task-form");
+        const taskIdHiddenInput = document.getElementById("task-id-hidden");
+        const taskModalTitle = document.getElementById("task-modal-title");
+        const submitTaskButton = document.getElementById("submit-task-button");
+
+        newTaskButton.addEventListener("click", () => {
+          taskIdHiddenInput.value = ""; // Clear hidden ID for new task
+          taskModalTitle.textContent = "Add New Task";
+          submitTaskButton.textContent = "Add Task";
+          openModal("new-task-modal");
+        });
+        closeTaskModalButton.addEventListener("click", () =>
+          closeModal("new-task-modal", "new-task-form")
+        );
+        taskModal.addEventListener("click", (e) => {
+          if (e.target === taskModal)
+            closeModal("new-task-modal", "new-task-form");
+        });
+
+        function openEditTaskModal(taskId) {
+          const task = tasksData.find((t) => t.id === taskId);
+          if (task) {
+            taskIdHiddenInput.value = task.id;
+            document.getElementById("task-title").value = task.title;
+            document.getElementById("task-description").value =
+              task.description;
+            document.getElementById("task-assignee").value = task.assignee;
+            document.getElementById("task-priority").value = task.priority;
+            document.getElementById("task-client").value = task.client;
+            document.getElementById("task-due-date").value = task.dueDate;
+
+            taskModalTitle.textContent = "Edit Task";
+            submitTaskButton.textContent = "Save Changes";
+            openModal("new-task-modal");
+          }
+        }
+
+        newTaskForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const id = taskIdHiddenInput.value;
+          const title = document.getElementById("task-title").value;
+          const description = document.getElementById("task-description").value;
+          const assignee = document.getElementById("task-assignee").value;
+          const priority = document.getElementById("task-priority").value;
+          const dueDate = document.getElementById("task-due-date").value;
+          const client = document.getElementById("task-client").value;
+
+          if (!title || !dueDate || !client) {
+            showToast("Task title, client, and due date are required.", true);
+            return;
+          }
+
+          if (id) {
+            // Editing existing task
+            const taskIndex = tasksData.findIndex((t) => t.id === id);
+            if (taskIndex !== -1) {
+              tasksData[taskIndex] = {
+                ...tasksData[taskIndex],
+                title,
+                description,
+                assignee,
+                priority,
+                dueDate,
+                client,
+              };
+            }
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Task "${title}" updated.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Task updated successfully!");
+          } else {
+            // Adding new task
+            const newTaskId = `task-${Date.now()}`;
+            tasksData.push({
+              id: newTaskId,
+              title,
+              description,
+              assignee,
+              priority,
+              dueDate,
+              status: "todo",
+              completed: false,
+              client,
+            });
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `New task "${title}" added for ${client}.`,
+              type: "info",
+              read: false,
+            });
+            showToast("New task added successfully!");
+          }
+
+          renderTasks();
+          closeModal("new-task-modal", "new-task-form");
+          updateNotificationBadge();
+          updateDashboardSummary();
+        });
+
+        // New/Edit Client Modal
+        const addClientButton = document.getElementById("add-client-button"); // This button is now inside the clients section
+        const clientModal = document.getElementById("add-client-modal");
+        const closeClientModalButton =
+          document.getElementById("close-client-modal");
+        const newClientForm = document.getElementById("new-client-form");
+        const clientIdHiddenInput = document.getElementById("client-id-hidden");
+        const clientModalTitle = document.getElementById("client-modal-title");
+        const submitClientButton = document.getElementById(
+          "submit-client-button"
+        );
+
+        addClientButton.addEventListener("click", () => {
+          clientIdHiddenInput.value = ""; // Clear hidden ID for new client
+          clientModalTitle.textContent = "Add New Client";
+          submitClientButton.textContent = "Add Client";
+          openModal("add-client-modal");
+        });
+        closeClientModalButton.addEventListener("click", () =>
+          closeModal("add-client-modal", "new-client-form")
+        );
+        clientModal.addEventListener("click", (e) => {
+          if (e.target === clientModal)
+            closeModal("add-client-modal", "new-client-form");
+        });
+
+        function openEditClientModal(clientId) {
+          const client = clientsData.find((c) => c.id === clientId);
+          if (client) {
+            clientIdHiddenInput.value = client.id;
+            document.getElementById("client-name").value = client.name;
+            document.getElementById("client-email").value = client.email;
+            document.getElementById("client-services").value = client.services;
+
+            clientModalTitle.textContent = "Edit Client";
+            submitClientButton.textContent = "Save Changes";
+            openModal("add-client-modal");
+          }
+        }
+
+        newClientForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const id = clientIdHiddenInput.value;
+          const clientName = document.getElementById("client-name").value;
+          const clientEmail = document.getElementById("client-email").value;
+          const clientServices =
+            document.getElementById("client-services").value;
+
+          if (!clientName || !clientEmail) {
+            showToast("Client name and email are required.", true);
+            return;
+          }
+
+          if (id) {
+            // Editing existing client
+            const clientIndex = clientsData.findIndex((c) => c.id === id);
+            if (clientIndex !== -1) {
+              clientsData[clientIndex] = {
+                ...clientsData[clientIndex],
+                name: clientName,
+                email: clientEmail,
+                services: clientServices,
+              };
+            }
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Client "${clientName}" updated.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Client updated successfully!");
+          } else {
+            // Adding new client
+            const newClientId = `client-${Date.now()}`;
+            const logoText = clientName
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+              .substring(0, 2);
+            const logoColor = getRandomColor();
+
+            clientsData.push({
+              id: newClientId,
+              name: clientName,
+              email: clientEmail,
+              services: clientServices,
+              status: "Active",
+              lastActivity: "Just added",
+              logoText: logoText,
+              logoColor: logoColor,
+            });
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `New client "${clientName}" added.`,
+              type: "info",
+              read: false,
+            });
+            showToast("New client added successfully!");
+          }
+
+          renderClients();
+          closeModal("add-client-modal", "new-client-form");
+          updateNotificationBadge();
+          updateDashboardSummary();
+        });
+
+        // New/Edit Project Modal
+        const addProjectButton = document.getElementById("add-project-button"); // This button is now inside the projects section
+        const projectModal = document.getElementById("add-project-modal");
+        const closeProjectModalButton = document.getElementById(
+          "close-project-modal"
+        );
+        const newProjectForm = document.getElementById("new-project-form");
+        const projectIdHiddenInput =
+          document.getElementById("project-id-hidden");
+        const projectModalTitle = document.getElementById(
+          "project-modal-title"
+        );
+        const submitProjectButton = document.getElementById(
+          "submit-project-button"
+        );
+        const projectTypeSelect = document.getElementById(
+          "project-type-select"
+        );
+        const customProjectTypeContainer = document.getElementById(
+          "custom-project-type-container"
+        );
+        const customProjectTypeInput = document.getElementById(
+          "custom-project-type-input"
+        );
+
+        // Event listener for the "Add Project" button within the projects section
+        addProjectButton.addEventListener("click", () => {
+          projectIdHiddenInput.value = ""; // Clear hidden ID for new project
+          projectModalTitle.textContent = "Add New Project";
+          submitProjectButton.textContent = "Add Project";
+          populateProjectTypeDropdown(); // Populate project type dropdown
+          customProjectTypeContainer.classList.add("hidden"); // Hide custom input by default
+          openModal("add-project-modal");
+        });
+
+        closeProjectModalButton.addEventListener("click", () =>
+          closeModal("add-project-modal", "new-project-form")
+        );
+        projectModal.addEventListener("click", (e) => {
+          if (e.target === projectModal)
+            closeModal("add-project-modal", "new-project-form");
+        });
+
+        projectTypeSelect.addEventListener("change", () => {
+          if (projectTypeSelect.value === "Others") {
+            customProjectTypeContainer.classList.remove("hidden");
+            customProjectTypeInput.setAttribute("required", "true");
+          } else {
+            customProjectTypeContainer.classList.add("hidden");
+            customProjectTypeInput.removeAttribute("required");
+            customProjectTypeInput.value = ""; // Clear custom input when not 'Others'
+          }
+        });
+
+        function populateProjectTypeDropdown() {
+          projectTypeSelect.innerHTML =
+            '<option value="">Select Project Type</option>';
+          serviceProgressData.forEach((service) => {
+            const option = document.createElement("option");
+            option.value = service.name;
+            option.textContent = service.name;
+            projectTypeSelect.appendChild(option);
+          });
+          const othersOption = document.createElement("option");
+          othersOption.value = "Others";
+          othersOption.textContent = "Others";
+          projectTypeSelect.appendChild(othersOption);
+        }
+
+        function openEditProjectModal(projectId) {
+          const project = projectsData.find((p) => p.id === projectId);
+          if (project) {
+            projectIdHiddenInput.value = project.id;
+            document.getElementById("project-name").value = project.name;
+            document.getElementById("project-client").value = project.client;
+            document.getElementById("project-status").value = project.status;
+            document.getElementById("project-due-date").value = project.dueDate;
+
+            populateProjectTypeDropdown(); // Populate dropdown first
+            projectTypeSelect.value = project.projectType || "";
+            if (project.projectType === "Others") {
+              customProjectTypeContainer.classList.remove("hidden");
+              customProjectTypeInput.value = project.customProjectType || "";
+              customProjectTypeInput.setAttribute("required", "true");
+            } else {
+              customProjectTypeContainer.classList.add("hidden");
+              customProjectTypeInput.removeAttribute("required");
+              customProjectTypeInput.value = "";
+            }
+
+            projectModalTitle.textContent = "Edit Project";
+            submitProjectButton.textContent = "Save Changes";
+            openModal("add-project-modal");
+          }
+        }
+
+        newProjectForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const id = projectIdHiddenInput.value;
+          const projectName = document.getElementById("project-name").value;
+          const projectClient = document.getElementById("project-client").value;
+          const projectType = projectTypeSelect.value;
+          const customProjectType = customProjectTypeInput.value;
+          const projectStatus = document.getElementById("project-status").value;
+          const projectDueDate =
+            document.getElementById("project-due-date").value;
+
+          if (
+            !projectName ||
+            !projectClient ||
+            !projectDueDate ||
+            !projectType ||
+            (projectType === "Others" && !customProjectType)
+          ) {
+            showToast("All required project fields must be filled.", true);
+            return;
+          }
+
+          let serviceTasksProgress = {};
+          if (projectType !== "Others") {
+            const serviceTemplate = serviceProgressData.find(
+              (s) => s.name === projectType
+            );
+            if (serviceTemplate) {
+              serviceTemplate.tasks.forEach((task) => {
+                serviceTasksProgress[task.name] = false; // Initialize all tasks as not completed
+              });
+            }
+          }
+
+          if (id) {
+            // Editing existing project
+            const projectIndex = projectsData.findIndex((p) => p.id === id);
+            if (projectIndex !== -1) {
+              projectsData[projectIndex] = {
+                ...projectsData[projectIndex],
+                name: projectName,
+                client: projectClient,
+                projectType: projectType,
+                customProjectType:
+                  projectType === "Others" ? customProjectType : "",
+                status: projectStatus,
+                dueDate: projectDueDate,
+                completed: projectStatus === "Completed" ? true : false,
+                completionDate:
+                  projectStatus === "Completed"
+                    ? new Date().toISOString().split("T")[0]
+                    : undefined,
+                // If project type changes, re-initialize serviceTasksProgress
+                serviceTasksProgress:
+                  projectsData[projectIndex].projectType !== projectType &&
+                  projectType !== "Others"
+                    ? serviceTasksProgress
+                    : projectsData[projectIndex].serviceTasksProgress,
+              };
+            }
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Project "${projectName}" updated.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Project updated successfully!");
+          } else {
+            // Adding new project
+            const newProjectId = `project-${Date.now()}`;
+            projectsData.push({
+              id: newProjectId,
+              name: projectName,
+              client: projectClient,
+              projectType: projectType,
+              customProjectType:
+                projectType === "Others" ? customProjectType : "",
+              status: projectStatus,
+              dueDate: projectDueDate,
+              completed: projectStatus === "Completed" ? true : false,
+              completionDate:
+                projectStatus === "Completed"
+                  ? new Date().toISOString().split("T")[0]
+                  : undefined,
+              serviceTasksProgress: serviceTasksProgress, // Assign initialized tasks
+            });
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `New project "${projectName}" added for ${projectClient}.`,
+              type: "info",
+              read: false,
+            });
+            showToast("New project added successfully!");
+          }
+
+          renderProjects();
+          closeModal("add-project-modal", "new-project-form");
+          updateNotificationBadge();
+          updateDashboardSummary();
+        });
+
+        // Project Details/Task Completion Modal
+        const projectDetailsModal = document.getElementById(
+          "project-details-modal"
+        );
+        const closeProjectDetailsModalButton = document.getElementById(
+          "close-project-details-modal"
+        );
+        const projectDetailsTitle = document.getElementById(
+          "project-details-title"
+        );
+        const detailProjectClient = document.getElementById(
+          "detail-project-client"
+        );
+        const detailProjectType = document.getElementById(
+          "detail-project-type"
+        );
+        const detailProjectStatus = document.getElementById(
+          "detail-project-status"
+        );
+        const detailProjectDueDate = document.getElementById(
+          "detail-project-due-date"
+        );
+        const detailProjectOverallProgressBar = document.getElementById(
+          "detail-project-overall-progress-bar"
+        );
+        const detailProjectOverallProgressText = document.getElementById(
+          "detail-project-overall-progress-text"
+        );
+        const projectTasksList = document.getElementById("project-tasks-list");
+        const saveProjectDetailsBtn = document.getElementById(
+          "save-project-details-btn"
+        );
+
+        let currentProjectBeingEdited = null; // To hold the project object being viewed/edited
+
+        closeProjectDetailsModalButton.addEventListener("click", () =>
+          closeModal("project-details-modal")
+        );
+        projectDetailsModal.addEventListener("click", (e) => {
+          if (e.target === projectDetailsModal)
+            closeModal("project-details-modal");
+        });
+        saveProjectDetailsBtn.addEventListener("click", () => {
+          // When "Done" is clicked, re-render projects to update progress bars
+          renderProjects();
+          closeModal("project-details-modal");
+        });
+
+        function openProjectDetailsModal(projectId) {
+          currentProjectBeingEdited = projectsData.find(
+            (p) => p.id === projectId
+          );
+          if (!currentProjectBeingEdited) return;
+
+          projectDetailsTitle.textContent = currentProjectBeingEdited.name;
+          detailProjectClient.textContent = currentProjectBeingEdited.client;
+          detailProjectType.textContent =
+            currentProjectBeingEdited.projectType === "Others"
+              ? currentProjectBeingEdited.customProjectType
+              : currentProjectBeingEdited.projectType || "N/A";
+          detailProjectStatus.textContent = currentProjectBeingEdited.status;
+          detailProjectDueDate.textContent = currentProjectBeingEdited.dueDate;
+
+          renderProjectTasks(currentProjectBeingEdited);
+          openModal("project-details-modal");
+        }
+
+        function renderProjectTasks(project) {
+          projectTasksList.innerHTML = "";
+          const serviceType = serviceProgressData.find(
+            (s) => s.name === project.projectType
+          );
+
+          if (!serviceType || project.projectType === "Others") {
+            projectTasksList.innerHTML =
+              '<p class="text-gray-600">This project is a custom type or has no predefined tasks for tracking progress.</p>';
+            detailProjectOverallProgressBar.style.width = "0%";
+            detailProjectOverallProgressText.textContent = "0% Complete";
+            return;
+          }
+
+          serviceType.tasks.forEach((task) => {
+            const isCompleted =
+              project.serviceTasksProgress &&
+              project.serviceTasksProgress[task.name];
+            const taskItem = document.createElement("div");
+            taskItem.classList.add(
+              "flex",
+              "items-center",
+              "justify-between",
+              "p-2",
+              "bg-gray-50",
+              "rounded-md",
+              "shadow-sm"
+            );
+            taskItem.innerHTML = `
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" data-task-name="${
+                              task.name
+                            }" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${
+              isCompleted ? "checked" : ""
+            }>
+                            <span class="text-gray-800">${task.name} (${
+              task.percentage
+            }%)</span>
+                        </label>
+                    `;
+            projectTasksList.appendChild(taskItem);
+          });
+
+          // Add event listeners for checkboxes
+          projectTasksList
+            .querySelectorAll('input[type="checkbox"]')
+            .forEach((checkbox) => {
+              checkbox.addEventListener("change", (e) => {
+                const taskName = e.target.dataset.taskName;
+                if (currentProjectBeingEdited.serviceTasksProgress) {
+                  currentProjectBeingEdited.serviceTasksProgress[taskName] =
+                    e.target.checked;
+                  updateProjectOverallProgressDisplay(
+                    currentProjectBeingEdited
+                  );
+                }
+              });
+            });
+
+          updateProjectOverallProgressDisplay(project);
+        }
+
+        function updateProjectOverallProgressDisplay(project) {
+          const progress = calculateProjectProgress(project);
+          detailProjectOverallProgressBar.style.width = `${progress}%`;
+          detailProjectOverallProgressText.textContent = `${progress}% Complete`;
+
+          // Also update the project's status if it reaches 100%
+          if (progress === 100 && !project.completed) {
+            project.status = "Completed";
+            project.completed = true;
+            project.completionDate = new Date().toISOString().split("T")[0];
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Project "${project.name}" completed!`,
+              type: "success",
+              read: false,
+            });
+            updateNotificationBadge();
+            renderProjects(); // Re-render projects table to reflect status change
+            renderHistory(); // Update history
+            updateDashboardSummary(); // Update dashboard numbers
+          } else if (progress < 100 && project.status === "Completed") {
+            // If tasks are unchecked after being completed, revert status
+            project.status = "In Progress";
+            project.completed = false;
+            delete project.completionDate;
+            renderProjects();
+            renderHistory();
+            updateDashboardSummary();
+          }
+        }
+
+        // Notification Modal
+        const notificationButton = document.getElementById(
+          "notification-button"
+        );
+        const notificationModal = document.getElementById("notification-modal");
+        const closeNotificationModalButton = document.getElementById(
+          "close-notification-modal"
+        );
+        const notificationList = document.getElementById("notification-list");
+        const notificationBadge = document.getElementById("notification-badge");
+        const markAllReadButton = document.getElementById("mark-all-read-btn");
+
+        notificationButton.addEventListener("click", () => {
+          renderNotifications();
+          openModal("notification-modal");
+        });
+        closeNotificationModalButton.addEventListener("click", () =>
+          closeModal("notification-modal")
+        );
+        notificationModal.addEventListener("click", (e) => {
+          if (e.target === notificationModal) closeModal("notification-modal");
+        });
+
+        markAllReadButton.addEventListener("click", () => {
+          notificationsData.forEach((notif) => (notif.read = true));
+          renderNotifications();
+        });
+
+        function renderNotifications() {
+          notificationList.innerHTML = ""; // Clear existing notifications
+          const unreadNotifications = notificationsData.filter(
+            (notif) => !notif.read
+          );
+
+          if (unreadNotifications.length === 0) {
+            notificationList.innerHTML =
+              '<p class="text-gray-600" id="no-notifications-message">No new notifications.</p>';
+            markAllReadButton.classList.add("hidden"); // Hide button if no unread
+          } else {
+            markAllReadButton.classList.remove("hidden"); // Show button if unread
+            unreadNotifications.forEach((notif) => {
+              const notifDiv = document.createElement("div");
+              notifDiv.classList.add(
+                "p-3",
+                "bg-blue-50",
+                "rounded-md",
+                "flex",
+                "items-center",
+                "justify-between"
+              );
+              notifDiv.innerHTML = `
+                            <p class="text-sm text-gray-800">${notif.message}</p>
+                            <button data-notif-id="${notif.id}" class="mark-read-btn text-blue-600 hover:text-blue-800 text-xs font-medium">Mark as Read</button>
+                        `;
+              notificationList.appendChild(notifDiv);
+            });
+
+            document.querySelectorAll(".mark-read-btn").forEach((button) => {
+              button.addEventListener("click", (e) => {
+                const notifId = e.target.dataset.notifId;
+                const notifIndex = notificationsData.findIndex(
+                  (n) => n.id === notifId
+                );
+                if (notifIndex !== -1) {
+                  notificationsData[notifIndex].read = true;
+                  renderNotifications(); // Re-render to remove read notification
+                  updateNotificationBadge();
+                }
+              });
+            });
+          }
+          updateNotificationBadge();
+        }
+
+        function updateNotificationBadge() {
+          const unreadCount = notificationsData.filter(
+            (notif) => !notif.read
+          ).length;
+          if (unreadCount > 0) {
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.classList.remove("hidden");
+          } else {
+            notificationBadge.classList.add("hidden");
+          }
+        }
+
+        // Function to populate client dropdowns in modals
+        function populateClientDropdowns() {
+          const taskClientSelect = document.getElementById("task-client");
+          const projectClientSelect = document.getElementById("project-client");
+
+          // Store current selected values to re-select after refresh
+          const currentTaskClient = taskClientSelect.value;
+          const currentProjectClient = projectClientSelect.value;
+
+          // Clear existing options
+          taskClientSelect.innerHTML =
+            '<option value="">Select Client</option>';
+          projectClientSelect.innerHTML =
+            '<option value="">Select Client</option>';
+
+          clientsData.forEach((client) => {
+            const optionTask = document.createElement("option");
+            optionTask.value = client.name;
+            optionTask.textContent = client.name;
+            taskClientSelect.appendChild(optionTask);
+
+            const optionProject = document.createElement("option");
+            optionProject.value = client.name;
+            optionProject.textContent = client.name;
+            projectClientSelect.appendChild(optionProject);
+          });
+
+          // Re-select previously selected values if they still exist
+          if (
+            currentTaskClient &&
+            Array.from(taskClientSelect.options).some(
+              (opt) => opt.value === currentTaskClient
+            )
+          ) {
+            taskClientSelect.value = currentTaskClient;
+          }
+          if (
+            currentProjectClient &&
+            Array.from(projectClientSelect.options).some(
+              (opt) => opt.value === currentProjectClient
+            )
+          ) {
+            projectClientSelect.value = currentProjectClient;
+          }
+        }
+
+        // --- Confirmation Modal for Deletion ---
+        const confirmationModal = document.getElementById("confirmation-modal");
+        const closeConfirmationModalButton = document.getElementById(
+          "close-confirmation-modal"
+        );
+        const cancelDeleteButton = document.getElementById("cancel-delete-btn");
+        const confirmDeleteButton =
+          document.getElementById("confirm-delete-btn");
+
+        let itemToDelete = { type: null, id: null }; // To store which item is being deleted
+
+        // Event listener for all delete buttons (delegated for dynamic elements)
+        document.addEventListener("click", (e) => {
+          if (e.target.classList.contains("delete-item-btn")) {
+            itemToDelete.type = e.target.dataset.itemType; // 'client', 'task', or 'project'
+            if (itemToDelete.type === "client") {
+              itemToDelete.id = e.target.dataset.clientId;
+            } else if (itemToDelete.type === "task") {
+              itemToDelete.id = e.target.dataset.taskId;
+            } else if (itemToDelete.type === "project") {
+              itemToDelete.id = e.target.dataset.projectId;
+            }
+            openModal("confirmation-modal");
+          }
+        });
+
+        closeConfirmationModalButton.addEventListener("click", () =>
+          closeModal("confirmation-modal")
+        );
+        cancelDeleteButton.addEventListener("click", () =>
+          closeModal("confirmation-modal")
+        );
+        confirmationModal.addEventListener("click", (e) => {
+          if (e.target === confirmationModal) closeModal("confirmation-modal");
+        });
+
+        confirmDeleteButton.addEventListener("click", () => {
+          if (itemToDelete.type === "client") {
+            clientsData = clientsData.filter(
+              (client) => client.id !== itemToDelete.id
+            );
+            renderClients();
+            populateClientDropdowns(); // Update dropdowns after client deletion
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Client deleted.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Client deleted successfully!");
+          } else if (itemToDelete.type === "task") {
+            tasksData = tasksData.filter((task) => task.id !== itemToDelete.id);
+            renderTasks();
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Task deleted.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Task deleted successfully!");
+          } else if (itemToDelete.type === "project") {
+            projectsData = projectsData.filter(
+              (project) => project.id !== itemToDelete.id
+            );
+            renderProjects();
+            notificationsData.push({
+              id: `notif-${Date.now()}`,
+              message: `Project deleted.`,
+              type: "info",
+              read: false,
+            });
+            showToast("Project deleted successfully!");
+          }
+          renderHistory(); // Update history after any deletion
+          updateNotificationBadge();
+          updateDashboardSummary();
+          closeModal("confirmation-modal");
+        });
+
+        // --- Search Functionality ---
+        const searchInput = document.getElementById("search-input");
+        searchInput.addEventListener("input", (e) => {
+          const filterText = e.target.value;
+          // Only filter clients when on the clients section
+          if (
+            !document
+              .getElementById("clients-section")
+              .classList.contains("hidden")
+          ) {
+            renderClients(filterText);
+          }
+          // You could extend this to filter tasks or projects based on the active tab
+        });
+
+        // --- Dashboard View All Buttons ---
+        document.querySelectorAll(".view-all-btn").forEach((button) => {
+          button.addEventListener("click", (e) => {
+            const targetSection = e.target.dataset.section;
+            showSection(targetSection + "-section");
+          });
+        });
+
+        // --- Back to Dashboard Buttons ---
+        document
+          .querySelectorAll(".back-to-dashboard-btn")
+          .forEach((button) => {
+            button.addEventListener("click", (e) => {
+              e.preventDefault();
+              showSection("dashboard-section");
+            });
+          });
+
+        // --- Initial Setup on Load ---
+        initializeCharts();
+        renderClients();
+        renderTasks();
+        renderProjects();
+        renderHistory(); // Render history on load as well
+        updateNotificationBadge();
+        renderUpcomingDeadlines(); // Render the new upcoming deadlines section
+        updateDashboardSummary(); // Initial update of dashboard numbers
+
+        // Ensure only dashboard is visible on load
+        showSection("dashboard-section"); // Show the dashboard section by default
+      });
+    </script>
+  </body>
+</html>
